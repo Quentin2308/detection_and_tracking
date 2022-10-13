@@ -4,7 +4,7 @@ class TrackableObject:
         # using the current centroid
         self.objectID = objectID
         self.centroids = [centroid]
-        self.label = label
+        
         
         # initialize a boolean used to indicate if the object has
         # already been counted or not
