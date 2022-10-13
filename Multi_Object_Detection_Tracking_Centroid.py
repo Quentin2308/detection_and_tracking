@@ -13,10 +13,15 @@ import time
 import dlib
 import cv2
 import os
+from pycoral.adapters.common import input_size
+from pycoral.adapters.detect import get_objects
+from pycoral.utils.dataset import read_label_file
+from pycoral.utils.edgetpu import make_interpreter
+from pycoral.utils.edgetpu import run_inference
 
 if os.path.isdir("output") is False: os.mkdir("output")
 
-proto = 'mobilenet_ssd/MobileNetSSD_deploy.prototxt'
+labels = 'mobilenet_ssd/coco_labels.txt'
 model = 'mobilenet_ssd/MobileNetSSD_deploy.caffemodel'
 
 # construct the argument parse and parse the arguments
@@ -25,6 +30,8 @@ ap.add_argument("-i", "--input", type=str,
     help="path to optional input video file")
 ap.add_argument("-o", "--output", type=str,
     help="path to optional output video file")
+ap.add_argument("-k", "--top_k", type=int, default=3,
+    help='number of categories with highest score to display')
 ap.add_argument("-c", "--confidence", type=float, default=0.2,
     help="minimum probability to filter weak detections")
 ap.add_argument("-s", "--skip-frames", type=int, default=30,
@@ -33,27 +40,30 @@ args = vars(ap.parse_args())
 
 # initialize the list of class labels MobileNet SSD was trained to
 # detect
-CLASSES = ["background", "aeroplane", "bicycle", "bird", "boat",
-    "bottle", "bus", "car", "cat", "chair", "cow", "diningtable",
-    "dog", "horse", "motorbike", "person", "pottedplant", "sheep",
-    "sofa", "train", "tvmonitor"]
+#CLASSES = ["background", "aeroplane", "bicycle", "bird", "boat",
+#    "bottle", "bus", "car", "cat", "chair", "cow", "diningtable",
+#    "dog", "horse", "motorbike", "person", "pottedplant", "sheep",
+#    "sofa", "train", "tvmonitor"]
 
-style = style_from_dict({ Token.QuestionMark: '#E91E63 bold', Token.Selected: '#00FFFF', Token.Instruction: '', Token.Answer: '#2196f3 bold', Token.Question: '#7FFF00 bold',})
-time.sleep(0.2)
-class_option=[ 
-    {
-        'type':'list',
-        'name':'class',
-        'message':'Class for tracking:',
-        'choices': CLASSES,
-    }
-]
-class_answer=prompt(class_option,style=style)
-class_to_track=class_answer['class']
+#style = style_from_dict({ Token.QuestionMark: '#E91E63 bold', Token.Selected: '#00FFFF', Token.Instruction: '', Token.Answer: '#2196f3 bold', Token.Question: '#7FFF00 bold',})
+#time.sleep(0.2)
+#class_option=[ 
+#    {
+#        'type':'list',
+#        'name':'class',
+#        'message':'Class for tracking:',
+#        'choices': CLASSES,
+#    }
+#]
+#class_answer=prompt(class_option,style=style)
+#class_to_track=class_answer['class']
 
 # load our serialized model from disk
 print("[INFO] loading model...")
-net = cv2.dnn.readNetFromCaffe(proto, model)
+interpreter = make_iterpreter(model)
+interpreter.allocate_tensors()
+labels = read_label_file(labels)
+inference_size = input_size(interpreter)
 
 # if a video path was not supplied, grab a reference to the picamera
 if not args.get("input", False):
@@ -90,6 +100,7 @@ totalFrames = 0
 # start the FPS estimator
 fps = FPS().start()
 
+
 # loop over frames from the video file stream
 while True:
     try:
@@ -104,8 +115,8 @@ while True:
         
         # resize the frame for faster processing and then convert the
         # frame from BGR to RGB ordering (dlib needs RGB ordering)
-        frame = imutils.resize(frame, width=500)
-        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        cv2_im_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        cv2_im_rgb = imutils.resize(cv2_im_rgb, inference_size)
         
         #if the frame dimension are empty then set them
         if W is None or H is None:
@@ -129,36 +140,43 @@ while True:
             trackers = []
             
             # grab the frame dimensions and convert the frame to a blob
-            blob = cv2.dnn.blobFromImage(cv2.resize(frame, (300, 300)), 0.007843, (W, H), 127.5)
+            #blob = cv2.dnn.blobFromImage(cv2.resize(frame, (300, 300)), 0.007843, (W, H), 127.5)
 
             # pass the blob through the network and obtain the detections
             # and predictions
-            net.setInput(blob)
-            detections = net.forward()
+            #net.setInput(blob)
+            #detections = net.forward()
+            detections = get_objects(interpreter, args.confidence)[:args.top_k]
+            
+            height, width, channels = frame.shape
+            scale_x, scale_y = width / inference_size[0], height / inference_size[1]
             
             # loop over the detections
-            for i in np.arange(0, detections.shape[2]):
+            for obj in detections:
                 # extract the confidence (i.e., probability) associated
                 # with the prediction
-                confidence = detections[0, 0, i, 2]
-                
+                confidence = int(100 * obj.score)
+                label = labels.get(obj.id, obj.id)
                 # filter out weak detections by requiring a minimum
                 # confidence
-                if confidence > args["confidence"]:
+                #if confidence > args["confidence"]:
                     # extract the index of the class label from the
                     # detections list
-                    idx = int(detections[0, 0, i, 1])
-                    label = CLASSES[idx]
+                    #idx = int(detections[0, 0, i, 1])
+                    #label = CLASSES[idx]
                     
                     # if the class label is not a person, ignore it
-                    if label != class_to_track:
-                        continue
+                    #if label != class_to_track:
+                        #continue
+                    bbox = obj.bbox.scale(scale_x, scale_y)
+                    x0, y0 = int(bbox.xmin), int(bbox.ymin)
+                    x1, y1 = int(bbox.xmax), int(bbox.ymax)
                     
                     # compute the (x, y)-coordinates of the bounding box
                     # for the object
-                    box = detections[0, 0, i, 3:7] * np.array([W, H, W, H])
-                    (startX, startY, endX, endY) = box.astype("int")
-                    bb = (startX, startY, endX, endY)
+                    #box = detections[0, 0, i, 3:7] * np.array([W, H, W, H])
+                    #(startX, startY, endX, endY) = box.astype("int")
+                    bb = (x0, y0, x1, y1)
                     
                     # create two brand new input and output queues,
                     # respectively
@@ -196,7 +214,7 @@ while True:
                 
         #loop over the tracked object
         for (objectID, centroid) in objects.items():
-            #check to see if a trackable on=bject exist for the current id
+            #check to see if a trackable object exist for the current id
             to = trackableObjects.get(objectID, None)
                     
             #if there is no tracable object create one
