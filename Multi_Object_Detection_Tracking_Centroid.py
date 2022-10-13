@@ -62,7 +62,7 @@ if not args.get("input", False):
     time.sleep(2.0)
     output = "output"
     
-# otherwize, grab the inout video file
+# otherwize, grab the input video file
 else :
     print("[INFO] opening video file ...")
     vs = cv2.VideoCapture(args["input"])
