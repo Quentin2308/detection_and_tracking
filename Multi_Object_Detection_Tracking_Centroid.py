@@ -40,7 +40,14 @@ args = vars(ap.parse_args())
 
 # initialize the list of class labels MobileNet SSD was trained to
 # detect
-CLASSES = ["person","bicycle","car","motorcycle","airplane","bus","train","truck","boat","traffic light","fire hydrant","n/a","stop sign","parking meter","bench","bird","cat","dog","horse","sheep","cow","elephant","bear","zebra","giraffe","n/a","backpack","umbrella","n/a","n/a","handbag","tie","suitcase","frisbee","skis","snowboard","sports ball","kite","baseball bat","baseball glove","skateboard","surfboard","tennis racket","bottle","n/a","wine glass","cup","fork","knife","spoon","bowl","banana","apple","sandwich","orange","broccoli","carrot","hot dog","pizza","donut","cake","chair","couch","potted plant","bed","n/a","dining table","n/a","n/a","toilet","n/a","tv","laptop","mouse","remote","keyboard","cell phone","microwave","oven","toaster","sink","refrigerator","n/a","book","clock","vase","scissors","teddy bear","hair drier","toothbrush"]
+CLASSES = ["person","bicycle","car","motorcycle","airplane","bus","train","truck","boat","traffic light",
+           "fire hydrant","n/a","stop sign","parking meter","bench","bird","cat","dog","horse","sheep","cow",
+           "elephant","bear","zebra","giraffe","n/a","backpack","umbrella","n/a","n/a","handbag","tie","suitcase",
+           "frisbee","skis","snowboard","sports ball","kite","baseball bat","baseball glove","skateboard","surfboard",
+           "tennis racket","bottle","n/a","wine glass","cup","fork","knife","spoon","bowl","banana","apple","sandwich",
+           "orange","broccoli","carrot","hot dog","pizza","donut","cake","chair","couch","potted plant","bed","n/a",
+           "dining table","n/a","n/a","toilet","n/a","tv","laptop","mouse","remote","keyboard","cell phone","microwave",
+           "oven","toaster","sink","refrigerator","n/a","book","clock","vase","scissors","teddy bear","hair drier","toothbrush"]
 
 style = style_from_dict({ Token.QuestionMark: '#E91E63 bold', Token.Selected: '#00FFFF', Token.Instruction: '', Token.Answer: '#2196f3 bold', Token.Question: '#7FFF00 bold',})
 time.sleep(0.2)
